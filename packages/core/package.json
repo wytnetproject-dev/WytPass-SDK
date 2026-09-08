@@ -1,0 +1,54 @@
+{
+  "name": "@wytpass/core",
+  "version": "0.1.0",
+  "description": "Core TypeScript SDK for WytPass SSO, OAuth 2.0 and OpenID Connect authentication",
+  "author": "Wytnet <support@wytnet.com>",
+  "license": "MIT",
+  "homepage": "https://wytnet.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wytnet/wytpass-sdk.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/wytnet/wytpass-sdk/issues"
+  },
+  "keywords": [
+    "wytpass",
+    "oauth2",
+    "oidc",
+    "openid-connect",
+    "sso",
+    "pkce",
+    "authentication",
+    "auth",
+    "typescript"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

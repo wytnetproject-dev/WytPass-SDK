@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["vitest.config.ts"],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/react" },
+    { "path": "./packages/nextjs" }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "name": "@wytpass/react",
+  "version": "0.1.0",
+  "description": "React SDK and hooks for WytPass SSO, OAuth 2.0 and OpenID Connect authentication",
+  "author": "Wytnet <support@wytnet.com>",
+  "license": "MIT",
+  "homepage": "https://wytnet.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wytnet/wytpass-sdk.git",
+    "directory": "packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/wytnet/wytpass-sdk/issues"
+  },
+  "keywords": [
+    "wytpass",
+    "oauth2",
+    "oidc",
+    "react",
+    "hooks",
+    "sso",
+    "authentication",
+    "pkce"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@wytpass/core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0 || >=18.0.0 || >=19.0.0",
+    "react-dom": ">=17.0.0 || >=18.0.0 || >=19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

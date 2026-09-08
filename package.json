@@ -1,0 +1,42 @@
+{
+  "name": "wytpass-sdk-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo for WytPass SSO / OAuth2 / OpenID Connect SDKs for JavaScript, TypeScript, React, and Next.js",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@wytpass/core && npm run build --workspace=@wytpass/react && npm run build --workspace=@wytpass/nextjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "npm run typecheck --workspace=@wytpass/core && npm run typecheck --workspace=@wytpass/react && npm run typecheck --workspace=@wytpass/nextjs",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "keywords": [
+    "wytpass",
+    "oauth2",
+    "openid-connect",
+    "oidc",
+    "sso",
+    "authentication",
+    "pkce",
+    "typescript",
+    "react",
+    "nextjs"
+  ],
+  "author": "Wytnet <support@wytnet.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "next": "^16.3.4",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
