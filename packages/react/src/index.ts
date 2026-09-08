@@ -3,11 +3,11 @@
  * React SDK, Context Provider, Callback Component, and Hooks for WytPass SSO / OAuth2.
  */
 
-export * from './types.js';
-export * from './context.js';
-export * from './provider.js';
-export * from './hooks.js';
-export * from './callback.js';
+export * from './types';
+export * from './context';
+export * from './provider';
+export * from './hooks';
+export * from './callback';
 
 // Re-export core types for developer convenience
 export type {
