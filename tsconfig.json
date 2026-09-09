@@ -4,10 +4,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext"
   },
-  "include": ["vitest.config.ts"],
-  "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/react" },
-    { "path": "./packages/nextjs" }
+  "include": [
+    "vitest.config.ts",
+    "packages/*/src/**/*",
+    "packages/*/tests/**/*"
   ]
 }

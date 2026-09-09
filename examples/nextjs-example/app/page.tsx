@@ -5,8 +5,8 @@ import { createWytPassAuth } from '@wytpass/nextjs';
 export default async function HomePage() {
   const auth = createWytPassAuth({
     clientId: process.env['WYTPASS_CLIENT_ID'] || 'demo_client_id',
-    redirectUri: process.env['WYTPASS_REDIRECT_URI'] || 'http://localhost:3000/api/auth/wytpass/callback',
-    allowHttp: true
+    clientSecret: process.env['WYTPASS_CLIENT_SECRET'],
+    allowHttp: process.env.NODE_ENV !== 'production'
   });
 
   const session = await auth.getSession();
@@ -44,7 +44,7 @@ export default async function HomePage() {
         <div>
           <a href="/api/auth/wytpass/login" className="btn-primary">
             <span>Sign in with WytPass</span>
-            <span>→</span>
+            <span>?</span>
           </a>
         </div>
       )}

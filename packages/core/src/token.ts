@@ -115,8 +115,11 @@ export async function exchangeAuthorizationCode(
   const bodyParams = new URLSearchParams();
   bodyParams.set('grant_type', DEFAULT_GRANT_TYPE_AUTHORIZATION_CODE);
   bodyParams.set('code', options.code);
-  bodyParams.set('redirect_uri', redirectUri);
   bodyParams.set('client_id', clientId);
+
+  if (redirectUri) {
+    bodyParams.set('redirect_uri', redirectUri);
+  }
 
   if (options.codeVerifier) {
     bodyParams.set('code_verifier', options.codeVerifier);

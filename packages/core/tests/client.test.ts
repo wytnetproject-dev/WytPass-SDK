@@ -22,9 +22,19 @@ describe('WytPassClient High-Level API', () => {
     expect(safeConfig.clientSecret).toBeUndefined();
   });
 
-  it('should throw ConfigurationError if missing required parameters', () => {
-    // @ts-expect-error missing redirectUri
-    expect(() => new WytPassClient({ clientId: 'wp_123' })).toThrow(ConfigurationError);
+  it('should initialize with clientId alone and require redirectUri when generating auth URL', async () => {
+    const client = new WytPassClient({ clientId: 'wp_123' });
+    expect(client.getConfig().clientId).toBe('wp_123');
+
+    // Should throw if generating auth url without redirectUri
+    await expect(client.getAuthorizationUrl()).rejects.toThrow(ConfigurationError);
+
+    // Should succeed when redirectUri is provided in options
+    const auth = await client.getAuthorizationUrl({ redirectUri: 'https://myapp.com/callback' });
+    expect(auth.url).toContain('https://wytnet.com/oauth/authorize');
+  });
+
+  it('should throw ConfigurationError if missing required clientId', () => {
     // @ts-expect-error missing clientId
     expect(() => new WytPassClient({ redirectUri: 'https://myapp.com' })).toThrow(ConfigurationError);
   });

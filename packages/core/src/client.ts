@@ -38,8 +38,8 @@ export class WytPassClient {
     if (!config.clientId || typeof config.clientId !== 'string') {
       throw new ConfigurationError('clientId is required in WytPassConfig.');
     }
-    if (!config.redirectUri || typeof config.redirectUri !== 'string') {
-      throw new ConfigurationError('redirectUri is required in WytPassConfig.');
+    if (config.redirectUri !== undefined && typeof config.redirectUri !== 'string') {
+      throw new ConfigurationError('redirectUri must be a string if provided in WytPassConfig.');
     }
 
     this.config = { ...config };

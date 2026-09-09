@@ -27,7 +27,7 @@ export interface WytPassNextConfig {
   clientSecret?: string;
 
   /**
-   * Callback redirect URI (Defaults to process.env.WYTPASS_REDIRECT_URI).
+   * Callback redirect URI (Optional: Auto-derived from request host if omitted).
    */
   redirectUri?: string;
 
@@ -109,7 +109,10 @@ export interface WytPassAuthInstance {
   /**
    * Initiates login and returns a Response redirecting to WytPass with PKCE/state cookies set.
    */
-  login: (options?: GetAuthorizationUrlOptions) => Promise<Response>;
+  login: (
+    requestOrOptions?: Request | GetAuthorizationUrlOptions,
+    options?: GetAuthorizationUrlOptions
+  ) => Promise<Response>;
 
   /**
    * Handles the OAuth callback inside a Next.js App Router Route Handler.

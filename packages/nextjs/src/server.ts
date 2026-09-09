@@ -5,8 +5,7 @@ import {
   OAuthError,
   WytPassClient,
   type GetAuthorizationUrlOptions,
-  type WytPassConfig,
-  type WytPassUser
+  type WytPassConfig
 } from '@wytpass/core';
 import { parseCookieHeader, serializeCookie, serializeDeleteCookie } from './cookies.js';
 import type { WytPassAuthInstance, WytPassNextConfig, WytPassSession } from './types.js';
@@ -16,24 +15,63 @@ const DEFAULT_STATE_COOKIE = 'wytpass_oauth_state';
 const DEFAULT_VERIFIER_COOKIE = 'wytpass_pkce_verifier';
 
 /**
+ * Resolves the application callback URL automatically from the incoming request or configuration.
+ */
+export function resolveRedirectUri(request?: Request, configuredUri?: string): string {
+  if (configuredUri) return configuredUri;
+  if (typeof process !== 'undefined' && process.env['WYTPASS_REDIRECT_URI']) {
+    return process.env['WYTPASS_REDIRECT_URI'];
+  }
+  if (request) {
+    try {
+      const host =
+        request.headers.get('x-forwarded-host') ||
+        request.headers.get('host') ||
+        new URL(request.url).host;
+
+      let proto =
+        request.headers.get('x-forwarded-proto') ||
+        request.headers.get('x-forwarded-protocol');
+
+      if (!proto) {
+        proto = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+      }
+
+      return `${proto}://${host}/api/auth/wytpass/callback`;
+    } catch {
+      // Fallback below
+    }
+  }
+  if (typeof process !== 'undefined' && process.env['VERCEL_URL']) {
+    return `https://${process.env['VERCEL_URL']}/api/auth/wytpass/callback`;
+  }
+  return 'http://localhost:3000/api/auth/wytpass/callback';
+}
+
+/**
  * Creates a WytPass authentication instance configured for Next.js App Router and Server Components.
  */
 export function createWytPassAuth(userConfig: WytPassNextConfig = {}): WytPassAuthInstance {
-  const clientId = userConfig.clientId || (typeof process !== 'undefined' ? process.env['WYTPASS_CLIENT_ID'] : undefined);
-  const clientSecret = userConfig.clientSecret || (typeof process !== 'undefined' ? process.env['WYTPASS_CLIENT_SECRET'] : undefined);
-  const redirectUri = userConfig.redirectUri || (typeof process !== 'undefined' ? process.env['WYTPASS_REDIRECT_URI'] : undefined);
-  const issuer = userConfig.issuer || (typeof process !== 'undefined' ? process.env['WYTPASS_ISSUER'] : undefined) || DEFAULT_ISSUER;
-  const scope = userConfig.scope || (typeof process !== 'undefined' ? process.env['WYTPASS_SCOPE'] : undefined);
+  const clientId =
+    userConfig.clientId ||
+    (typeof process !== 'undefined' ? process.env['WYTPASS_CLIENT_ID'] : undefined);
+  const clientSecret =
+    userConfig.clientSecret ||
+    (typeof process !== 'undefined' ? process.env['WYTPASS_CLIENT_SECRET'] : undefined);
+  const redirectUri =
+    userConfig.redirectUri ||
+    (typeof process !== 'undefined' ? process.env['WYTPASS_REDIRECT_URI'] : undefined);
+  const issuer =
+    userConfig.issuer ||
+    (typeof process !== 'undefined' ? process.env['WYTPASS_ISSUER'] : undefined) ||
+    DEFAULT_ISSUER;
+  const scope =
+    userConfig.scope ||
+    (typeof process !== 'undefined' ? process.env['WYTPASS_SCOPE'] : undefined);
 
   if (!clientId) {
     throw new ConfigurationError(
       'WYTPASS_CLIENT_ID is required. Set it in your .env or pass clientId to createWytPassAuth({ clientId: "..." }).'
-    );
-  }
-
-  if (!redirectUri) {
-    throw new ConfigurationError(
-      'WYTPASS_REDIRECT_URI is required. Set it in your .env or pass redirectUri to createWytPassAuth({ redirectUri: "..." }).'
     );
   }
 
@@ -64,8 +102,31 @@ export function createWytPassAuth(userConfig: WytPassNextConfig = {}): WytPassAu
     client,
     config: clientConfig,
 
-    async login(options: GetAuthorizationUrlOptions = {}): Promise<Response> {
-      const auth = await client.getAuthorizationUrl(options);
+    async login(
+      requestOrOptions?: Request | GetAuthorizationUrlOptions,
+      maybeOptions?: GetAuthorizationUrlOptions
+    ): Promise<Response> {
+      let request: Request | undefined;
+      let options: GetAuthorizationUrlOptions = {};
+
+      if (
+        requestOrOptions &&
+        'headers' in requestOrOptions &&
+        typeof (requestOrOptions as Request).url === 'string'
+      ) {
+        request = requestOrOptions as Request;
+        options = maybeOptions || {};
+      } else if (requestOrOptions) {
+        options = requestOrOptions as GetAuthorizationUrlOptions;
+      }
+
+      const effectiveRedirectUri =
+        options.redirectUri || resolveRedirectUri(request, clientConfig.redirectUri);
+
+      const auth = await client.getAuthorizationUrl({
+        ...options,
+        redirectUri: effectiveRedirectUri
+      });
 
       const headers = new Headers();
       headers.set('Location', auth.url);
@@ -131,11 +192,13 @@ export function createWytPassAuth(userConfig: WytPassNextConfig = {}): WytPassAu
       // Validate anti-CSRF state
       client.validateState(state, expectedState);
 
+      const effectiveRedirectUri = resolveRedirectUri(request, clientConfig.redirectUri);
+
       // Exchange authorization code
       const tokens = await client.exchangeCode({
         code,
         codeVerifier,
-        redirectUri: clientConfig.redirectUri
+        redirectUri: effectiveRedirectUri
       });
 
       // Retrieve UserInfo
@@ -186,7 +249,6 @@ export function createWytPassAuth(userConfig: WytPassNextConfig = {}): WytPassAu
       } else {
         // Support Next.js Server Components / RSC next/headers if available
         try {
-          // Dynamic import of next/headers so core doesn't hard-require Next runtime
           const { cookies } = await import('next/headers');
           const cookieStore = await cookies();
           const sessionCookie = cookieStore.get(sessionCookieName);
@@ -218,7 +280,10 @@ export function createWytPassAuth(userConfig: WytPassNextConfig = {}): WytPassAu
       }
     },
 
-    async requireAuth(request?: Request, redirectTo = '/api/auth/wytpass/login'): Promise<WytPassSession> {
+    async requireAuth(
+      request?: Request,
+      redirectTo = '/api/auth/wytpass/login'
+    ): Promise<WytPassSession> {
       const session = await authInstance.getSession(request);
       if (!session) {
         throw new Error(`Authentication required. Redirecting to ${redirectTo}`);

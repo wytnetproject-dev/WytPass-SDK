@@ -16,7 +16,7 @@ export function handleWytPassLogin(config?: WytPassNextConfig) {
     const loginHint = url.searchParams.get('login_hint') || undefined;
     const scope = url.searchParams.get('scope') || undefined;
 
-    return auth.login({ prompt, loginHint, scope });
+    return auth.login(request, { prompt, loginHint, scope });
   };
 }
 

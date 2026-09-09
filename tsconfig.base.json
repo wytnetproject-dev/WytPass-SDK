@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
     "esModuleInterop": true,
@@ -11,11 +11,15 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "composite": true,
     "sourceMap": true,
     "isolatedModules": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@wytpass/core": ["./packages/core/src/index.ts"],
+      "@wytpass/react": ["./packages/react/src/index.ts"],
+      "@wytpass/nextjs": ["./packages/nextjs/src/index.ts"]
+    }
   }
 }

@@ -29,9 +29,9 @@ export interface WytPassConfig {
   clientSecret?: string;
 
   /**
-   * Application Callback / Redirect URI registered in WytPass console.
+   * Application Callback / Redirect URI registered in WytPass console (Optional in dynamic server environments).
    */
-  redirectUri: string;
+  redirectUri?: string;
 
   /**
    * OIDC Issuer URL (Defaults to https://api.wytnet.com).
