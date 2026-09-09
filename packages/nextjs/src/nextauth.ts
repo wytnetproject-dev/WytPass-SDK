@@ -51,13 +51,15 @@ export function WytPassNextAuthProvider(options: WytPassNextAuthOptions = {}) {
     token: tokenUrl,
     userinfo: userInfoUrl,
     jwks_endpoint: jwksUrl,
-    checks: ['pkce', 'state'],
-    idToken: true,
-    profile(profile: Record<string, unknown>) {
+    client: {
+      token_endpoint_auth_method: 'client_secret_post'
+    },
+    checks: ['pkce', 'state'] as ('pkce' | 'state')[],
+    idToken: false,
+    profile(profile: Record<string, any>) {
       const user = normalizeUserInfo(profile);
       return {
-        ...user,
-        id: user.id,
+        id: String(user.id || user.sub || ''),
         name: user.name ?? user.id,
         email: user.email ?? null,
         image: user.picture ?? user.profilePicture ?? null,

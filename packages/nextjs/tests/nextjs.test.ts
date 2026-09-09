@@ -133,16 +133,29 @@ describe('@wytpass/nextjs Server & Cookie Utilities', () => {
     expect(provider.authorization.url).toBe('https://wytnet.com/oauth/authorize');
     expect(provider.token).toBe('https://api.wytnet.com/oauth/token');
     expect(provider.userinfo).toBe('https://api.wytnet.com/oauth/userinfo');
-    expect(provider.checks).toContain('pkce');
-    expect(provider.checks).toContain('state');
+    expect(provider.client.token_endpoint_auth_method).toBe('client_secret_post');
+    expect(provider.idToken).toBe(false);
+    expect(provider.checks).toEqual(['pkce', 'state']);
 
-    const normalized = provider.profile({
+    const normalizedFromUserId = provider.profile({
       user_id: 'usr_provider_1',
       username: 'provider_user',
       email: 'user@provider.com'
     });
-    expect(normalized.id).toBe('usr_provider_1');
-    expect(normalized.name).toBe('provider_user');
-    expect(normalized.email).toBe('user@provider.com');
+    expect(normalizedFromUserId.id).toBe('usr_provider_1');
+    expect(normalizedFromUserId.name).toBe('provider_user');
+    expect(normalizedFromUserId.email).toBe('user@provider.com');
+
+    const normalizedFromSub = provider.profile({
+      sub: 'sub_provider_2',
+      name: 'Sub User',
+      email: 'sub@provider.com',
+      picture: 'https://example.com/pic.png',
+      subscriptions: [{ plan: 'pro' }]
+    });
+    expect(normalizedFromSub.id).toBe('sub_provider_2');
+    expect(normalizedFromSub.name).toBe('Sub User');
+    expect(normalizedFromSub.image).toBe('https://example.com/pic.png');
+    expect(normalizedFromSub.subscriptions).toEqual([{ plan: 'pro' }]);
   });
 });
