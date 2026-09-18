@@ -1,6 +1,6 @@
 {
   "name": "wytpass-sdk-monorepo",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Monorepo for WytPass SSO / OAuth2 / OpenID Connect SDKs for JavaScript, TypeScript, React, and Next.js",
   "workspaces": [
