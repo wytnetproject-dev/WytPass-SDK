@@ -1,12 +1,12 @@
 import { buildAuthorizationUrl } from './authorization.js';
 import { STORAGE_KEYS } from './constants.js';
 import { fetchDiscoveryDocument } from './discovery.js';
-import { ConfigurationError } from './errors.js';
+import { ConfigurationError, InvalidStateError, OAuthError, WytPassError } from './errors.js';
 import { fetchJwks, parseJwt, validateIdTokenClaims } from './jwks.js';
 import { NullLogger } from './logger.js';
 import { generatePKCE } from './pkce.js';
 import { generateState, validateState } from './state.js';
-import { MemoryStorage } from './storage.js';
+import { BrowserStorage, MemoryStorage } from './storage.js';
 import { exchangeAuthorizationCode, refreshAccessToken } from './token.js';
 import type {
   AuthorizationUrlResult,
@@ -17,6 +17,7 @@ import type {
   JWKS,
   PKCEPair,
   RefreshTokenOptions,
+  WytPassCallbackResult,
   WytPassConfig,
   WytPassDiscoveryDocument,
   WytPassLogger,
@@ -43,10 +44,154 @@ export class WytPassClient {
     }
 
     this.config = { ...config };
-    this.storage = config.storage || new MemoryStorage();
+    this.storage = config.storage || (typeof window !== 'undefined' ? new BrowserStorage('sessionStorage') : new MemoryStorage());
     this.logger = config.logger || new NullLogger();
 
     this.logger.debug('WytPassClient initialized successfully for client_id:', this.config.clientId);
+  }
+
+  /**
+   * Initiates the OAuth 2.0 PKCE login redirect to the WytPass identity provider.
+   * Caches the generated state and code_verifier before redirecting.
+   */
+  public async login(options: GetAuthorizationUrlOptions = {}): Promise<void> {
+    const auth = await this.getAuthorizationUrl(options);
+    if (typeof window !== 'undefined' && window.location) {
+      window.location.assign(auth.url);
+      return;
+    }
+    throw new WytPassError(
+      'login() requires a browser environment with window.location. For server environments, use getAuthorizationUrl() and redirect the HTTP response.'
+    );
+  }
+
+  /**
+   * Handles the OAuth callback by parsing the URL, validating CSRF state,
+   * exchanging the authorization code for tokens, and retrieving the user profile.
+   */
+  public async handleCallback(callbackUrl?: string): Promise<WytPassCallbackResult> {
+    let searchParams: URLSearchParams;
+
+    if (callbackUrl) {
+      try {
+        const parsed = new URL(callbackUrl, 'http://localhost');
+        searchParams = parsed.searchParams;
+      } catch {
+        searchParams = new URLSearchParams(callbackUrl.startsWith('?') ? callbackUrl.slice(1) : callbackUrl);
+      }
+    } else if (typeof window !== 'undefined' && window.location) {
+      searchParams = new URLSearchParams(window.location.search);
+    } else {
+      throw new ConfigurationError('handleCallback() requires a callbackUrl string or a browser environment.');
+    }
+
+    const errorParam = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    const errorUri = searchParams.get('error_uri');
+
+    if (errorParam) {
+      // Clean up temporary transaction data on error
+      await Promise.resolve(this.storage.remove(STORAGE_KEYS.STATE));
+      await Promise.resolve(this.storage.remove(STORAGE_KEYS.CODE_VERIFIER));
+      throw new OAuthError(errorParam, errorDescription || undefined, errorUri || undefined);
+    }
+
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+
+    if (!code) {
+      throw new OAuthError('invalid_request', 'Callback URL is missing required "code" parameter.');
+    }
+
+    if (!state) {
+      throw new InvalidStateError('Callback URL is missing required "state" parameter.');
+    }
+
+    // 1. Validate state
+    await this.validateState(state);
+
+    // 2. Retrieve code_verifier from storage
+    const codeVerifier = (await Promise.resolve(this.storage.get(STORAGE_KEYS.CODE_VERIFIER))) ?? undefined;
+    if (!codeVerifier) {
+      throw new OAuthError('invalid_grant', 'PKCE code verifier is missing from storage.');
+    }
+
+    // 3. Exchange authorization code for tokens
+    const tokens = await this.exchangeCode({ code, codeVerifier });
+
+    // 4. Retrieve user profile
+    let user: WytPassUser;
+    try {
+      user = await this.getUserInfo(tokens.access_token);
+    } catch (err) {
+      if (tokens.user) {
+        user = {
+          id: tokens.user.id,
+          sub: tokens.user.id,
+          name: tokens.user.name,
+          email: tokens.user.email,
+          picture: tokens.user.profilePicture,
+          profilePicture: tokens.user.profilePicture,
+          raw: tokens.user as Record<string, unknown>
+        };
+      } else {
+        throw err;
+      }
+    }
+
+    // 5. Store active session data in storage
+    if (tokens.access_token) {
+      await Promise.resolve(this.storage.set(STORAGE_KEYS.ACCESS_TOKEN, tokens.access_token));
+    }
+    if (tokens.refresh_token) {
+      await Promise.resolve(this.storage.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refresh_token));
+    }
+    if (tokens.id_token) {
+      await Promise.resolve(this.storage.set(STORAGE_KEYS.ID_TOKEN, tokens.id_token));
+    }
+    await Promise.resolve(this.storage.set(STORAGE_KEYS.USER, JSON.stringify(user)));
+
+    return { tokens, user };
+  }
+
+  /**
+   * Retrieves the currently active access token from storage, if present.
+   */
+  public async getAccessToken(): Promise<string | null> {
+    return (await Promise.resolve(this.storage.get(STORAGE_KEYS.ACCESS_TOKEN))) ?? null;
+  }
+
+  /**
+   * Retrieves the currently authenticated user profile from storage, if present.
+   */
+  public async getUser(): Promise<WytPassUser | null> {
+    const rawUser = await Promise.resolve(this.storage.get(STORAGE_KEYS.USER));
+    if (!rawUser) return null;
+    try {
+      return JSON.parse(rawUser) as WytPassUser;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Returns whether the client currently holds an active access token in storage.
+   */
+  public async isAuthenticated(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return !!token;
+  }
+
+  /**
+   * Clears all session tokens, user profile data, and temporary PKCE state from storage.
+   */
+  public async logout(): Promise<void> {
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.ACCESS_TOKEN));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.REFRESH_TOKEN));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.ID_TOKEN));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.USER));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.STATE));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.CODE_VERIFIER));
   }
 
   /**
@@ -178,3 +323,9 @@ export class WytPassClient {
     return this.storage;
   }
 }
+
+/**
+ * Convenient alias for WytPassClient.
+ */
+export { WytPassClient as WytPass };
+export default WytPassClient;

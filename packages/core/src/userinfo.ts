@@ -1,7 +1,23 @@
-import { DEFAULT_REQUEST_TIMEOUT_MS, DEFAULT_USERINFO_ENDPOINT } from './constants.js';
+import { DEFAULT_REQUEST_TIMEOUT_MS, DEFAULT_USERINFO_ENDPOINT, ENVIRONMENTS } from './constants.js';
 import { NetworkError, OAuthError, UserInfoError } from './errors.js';
 import type { WytPassConfig, WytPassUser } from './types.js';
 import { validateEndpointUrl } from './authorization.js';
+
+/**
+ * Resolves the userinfo endpoint URL considering config overrides, apiUrl, and environment presets.
+ */
+function resolveUserInfoEndpoint(config: WytPassConfig): URL {
+  const envConfig = config.environment ? ENVIRONMENTS[config.environment] : undefined;
+  const allowHttp = config.allowHttp ?? envConfig?.allowHttp ?? false;
+
+  const baseEndpoint =
+    config.userInfoEndpoint ||
+    (config.apiUrl ? `${config.apiUrl.replace(/\/+$/, '')}/oauth/userinfo` : undefined) ||
+    envConfig?.userInfoEndpoint ||
+    DEFAULT_USERINFO_ENDPOINT;
+
+  return validateEndpointUrl(baseEndpoint, 'userInfoEndpoint', allowHttp);
+}
 
 /**
  * Normalizes raw WytPass userinfo payloads from various provider response formats.
@@ -71,11 +87,7 @@ export async function fetchUserInfo(
     throw new UserInfoError('Access token is required to fetch userinfo.');
   }
 
-  const userInfoUrl = validateEndpointUrl(
-    config.userInfoEndpoint || DEFAULT_USERINFO_ENDPOINT,
-    'userInfoEndpoint',
-    config.allowHttp
-  );
+  const userInfoUrl = resolveUserInfoEndpoint(config);
 
   const fetchFn = config.fetch || globalThis.fetch;
   if (typeof fetchFn !== 'function') {
@@ -97,11 +109,26 @@ export async function fetchUserInfo(
     });
 
     if (!response.ok) {
+      let errorDetail: string | undefined;
+      try {
+        const errJson = await response.json();
+        if (errJson && typeof errJson === 'object') {
+          errorDetail = errJson.detail || errJson.message || errJson.error_description;
+        }
+      } catch {
+        // Non-JSON response
+      }
+
       if (response.status === 401) {
-        throw new OAuthError('invalid_token', 'Access token is invalid or expired.', undefined, response.status);
+        throw new OAuthError(
+          'invalid_token',
+          errorDetail || 'Access token is invalid or expired.',
+          undefined,
+          response.status
+        );
       }
       throw new UserInfoError(
-        `Failed to fetch userinfo from ${userInfoUrl.toString()} (HTTP ${response.status}).`,
+        `Failed to fetch userinfo from ${userInfoUrl.toString()} (HTTP ${response.status})${errorDetail ? `: ${errorDetail}` : ''}.`,
         response.status
       );
     }

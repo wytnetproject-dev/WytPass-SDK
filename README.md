@@ -211,29 +211,30 @@ export default async function DashboardPage() {
 
 ---
 
-## Quick Start: Node.js / Vanilla TypeScript
+## Quick Start: Browser / Vanilla TypeScript / Node.js
 
 ```typescript
-import { WytPassClient } from '@wytpass/core';
+import { WytPass } from '@wytpass/core';
 
-const wytpass = new WytPassClient({
-  clientId: process.env.WYTPASS_CLIENT_ID!,
-  clientSecret: process.env.WYTPASS_CLIENT_SECRET,
-  redirectUri: 'https://example.com/callback'
+// 1. Initialize client (Use environment: 'local' for local development)
+const wytpass = new WytPass({
+  clientId: 'wp_your_client_id_here',
+  redirectUri: 'http://localhost:3000/callback',
+  environment: 'production' // or 'local'
 });
 
-// 1. Generate Auth URL (User redirected to this URL)
-const { url, state, codeVerifier } = await wytpass.getAuthorizationUrl();
+// 2. Initiate Login (Automatically redirects in browser with PKCE & CSRF protection)
+await wytpass.login();
 
-// 2. Exchange authorization code upon callback
-const tokens = await wytpass.exchangeCode({
-  code: receivedCode,
-  codeVerifier: savedCodeVerifier
-});
+// 3. Handle Callback (On /callback route: validates state, exchanges code, retrieves user)
+const { user, tokens } = await wytpass.handleCallback();
+console.log('Authenticated User:', user.name, user.email, tokens.access_token);
 
-// 3. Fetch normalized user profile
-const user = await wytpass.getUserInfo(tokens.access_token);
-console.log('Authenticated User:', user.name, user.email, user.subscriptions);
+// 4. Session management helpers
+const accessToken = await wytpass.getAccessToken();
+const currentUser = await wytpass.getUser();
+const isAuthed = await wytpass.isAuthenticated();
+await wytpass.logout();
 ```
 
 ---
@@ -243,15 +244,19 @@ console.log('Authenticated User:', user.name, user.email, user.subscriptions);
 | Property | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `clientId` | `string` | *(Required)* | OAuth Client ID assigned to your app |
-| `clientSecret` | `string` | `undefined` | Client Secret (**Server-side ONLY**) |
 | `redirectUri` | `string` | *(Required)* | Registered callback URL |
+| `environment` | `'production' \| 'local'` | `'production'` | Canonical environment preset adhering to Rule of Isolation |
+| `portalUrl` | `string` | `https://wytnet.com` | Base Portal URL (serves `/oauth/authorize`) |
+| `apiUrl` | `string` | `https://api.wytnet.com` | Base API URL (serves `/oauth/token` and `/oauth/userinfo`) |
+| `appId` | `string` | `undefined` | Optional marketplace application slug for scoped subscriptions |
+| `clientSecret` | `string` | `undefined` | Client Secret (**Server-side ONLY; NEVER in browser**) |
 | `issuer` | `string` | `https://api.wytnet.com` | OpenID Connect Issuer |
-| `authorizationEndpoint` | `string` | `https://wytnet.com/oauth/authorize` | Authorization URL |
-| `tokenEndpoint` | `string` | `https://api.wytnet.com/oauth/token` | Token exchange URL |
-| `userInfoEndpoint` | `string` | `https://api.wytnet.com/oauth/userinfo` | UserInfo URL |
-| `jwksEndpoint` | `string` | `https://api.wytnet.com/.well-known/jwks.json` | JWKS URL |
+| `authorizationEndpoint` | `string` | *(derived)* | Explicit Authorization URL override |
+| `tokenEndpoint` | `string` | *(derived)* | Explicit Token exchange URL override |
+| `userInfoEndpoint` | `string` | *(derived)* | Explicit UserInfo URL override |
+| `jwksEndpoint` | `string` | *(derived)* | Explicit JWKS URL override |
 | `scope` | `string` | `openid profile email` | Requested OAuth scopes |
-| `allowHttp` | `boolean` | `false` | Enable HTTP for localhost dev |
+| `allowHttp` | `boolean` | `false` *(true if local)* | Enable HTTP for localhost dev |
 | `timeoutMs` | `number` | `15000` | Network request timeout (ms) |
 
 ---

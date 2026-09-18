@@ -34,6 +34,29 @@ export interface WytPassConfig {
   redirectUri?: string;
 
   /**
+   * Environment preset ('production' | 'local').
+   * If set to 'local', automatically uses local endpoints and enables allowHttp.
+   */
+  environment?: 'production' | 'local';
+
+  /**
+   * Base URL of the WytPass Portal (where /oauth/authorize is served).
+   * Defaults to https://wytnet.com in production or http://localhost:5173 in local.
+   */
+  portalUrl?: string;
+
+  /**
+   * Base URL of the WytPass API (where /oauth/token and /oauth/userinfo are served).
+   * Defaults to https://api.wytnet.com in production or http://localhost:8000 in local.
+   */
+  apiUrl?: string;
+
+  /**
+   * Optional marketplace application slug (appId) for scoped subscriptions.
+   */
+  appId?: string;
+
+  /**
    * OIDC Issuer URL (Defaults to https://api.wytnet.com).
    */
   issuer?: string;
@@ -159,6 +182,11 @@ export interface GetAuthorizationUrlOptions {
   nonce?: string;
 
   /**
+   * Optional marketplace application slug (appId) for scoped subscriptions.
+   */
+  appId?: string;
+
+  /**
    * Additional custom query parameters.
    */
   extraParams?: Record<string, string>;
@@ -213,6 +241,20 @@ export interface RefreshTokenOptions {
   clientSecret?: string;
 }
 
+export interface WytPassTokenUser {
+  id: string;
+  name?: string;
+  email?: string;
+  profilePicture?: string;
+  [key: string]: unknown;
+}
+
+export interface WytPassTokenApplication {
+  appId: string;
+  name: string;
+  [key: string]: unknown;
+}
+
 export interface WytPassTokenResponse {
   access_token: string;
   token_type: string;
@@ -220,7 +262,15 @@ export interface WytPassTokenResponse {
   refresh_token?: string;
   id_token?: string;
   scope?: string;
+  user?: WytPassTokenUser;
+  application?: WytPassTokenApplication | null;
+  subscription?: Record<string, unknown> | null;
   [key: string]: unknown;
+}
+
+export interface WytPassCallbackResult {
+  tokens: WytPassTokenResponse;
+  user: WytPassUser;
 }
 
 export interface WytPassUser {

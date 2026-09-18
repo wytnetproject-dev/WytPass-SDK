@@ -2,11 +2,28 @@ import {
   DEFAULT_GRANT_TYPE_AUTHORIZATION_CODE,
   DEFAULT_GRANT_TYPE_REFRESH_TOKEN,
   DEFAULT_REQUEST_TIMEOUT_MS,
-  DEFAULT_TOKEN_ENDPOINT
+  DEFAULT_TOKEN_ENDPOINT,
+  ENVIRONMENTS
 } from './constants.js';
 import { NetworkError, OAuthError, TokenExchangeError } from './errors.js';
 import type { ExchangeCodeOptions, RefreshTokenOptions, WytPassConfig, WytPassTokenResponse } from './types.js';
 import { validateEndpointUrl } from './authorization.js';
+
+/**
+ * Resolves the token endpoint URL considering config overrides, apiUrl, and environment presets.
+ */
+function resolveTokenEndpoint(config: WytPassConfig): URL {
+  const envConfig = config.environment ? ENVIRONMENTS[config.environment] : undefined;
+  const allowHttp = config.allowHttp ?? envConfig?.allowHttp ?? false;
+
+  const baseEndpoint =
+    config.tokenEndpoint ||
+    (config.apiUrl ? `${config.apiUrl.replace(/\/+$/, '')}/oauth/token` : undefined) ||
+    envConfig?.tokenEndpoint ||
+    DEFAULT_TOKEN_ENDPOINT;
+
+  return validateEndpointUrl(baseEndpoint, 'tokenEndpoint', allowHttp);
+}
 
 /**
  * Executes a network fetch with timeout support.
@@ -73,9 +90,35 @@ async function handleTokenResponse(response: Response, endpointUrl: string): Pro
   const data = responseData as Record<string, unknown>;
 
   if (!response.ok) {
-    const error = typeof data['error'] === 'string' ? data['error'] : 'token_exchange_failed';
-    const errorDescription = typeof data['error_description'] === 'string' ? data['error_description'] : undefined;
+    let error = typeof data['error'] === 'string' ? data['error'] : undefined;
+    let errorDescription = typeof data['error_description'] === 'string' ? data['error_description'] : undefined;
     const errorUri = typeof data['error_uri'] === 'string' ? data['error_uri'] : undefined;
+
+    // Support FastAPI {"detail": "..."} and standard {"message": "..."} responses
+    const detail = typeof data['detail'] === 'string'
+      ? data['detail']
+      : typeof data['message'] === 'string'
+        ? data['message']
+        : undefined;
+
+    if (detail) {
+      if (!error && !errorDescription) {
+        if (detail.includes(':')) {
+          const colonIndex = detail.indexOf(':');
+          error = detail.substring(0, colonIndex).trim();
+          errorDescription = detail.substring(colonIndex + 1).trim();
+        } else {
+          error = detail;
+          errorDescription = detail;
+        }
+      } else if (!errorDescription) {
+        errorDescription = detail;
+      }
+    }
+
+    if (!error) {
+      error = 'token_exchange_failed';
+    }
 
     throw new OAuthError(error, errorDescription, errorUri, response.status);
   }
@@ -102,11 +145,7 @@ export async function exchangeAuthorizationCode(
   config: WytPassConfig,
   options: ExchangeCodeOptions
 ): Promise<WytPassTokenResponse> {
-  const tokenUrl = validateEndpointUrl(
-    config.tokenEndpoint || DEFAULT_TOKEN_ENDPOINT,
-    'tokenEndpoint',
-    config.allowHttp
-  );
+  const tokenUrl = resolveTokenEndpoint(config);
 
   const clientId = options.clientId || config.clientId;
   const clientSecret = options.clientSecret || config.clientSecret;
@@ -156,11 +195,7 @@ export async function refreshAccessToken(
   config: WytPassConfig,
   options: RefreshTokenOptions
 ): Promise<WytPassTokenResponse> {
-  const tokenUrl = validateEndpointUrl(
-    config.tokenEndpoint || DEFAULT_TOKEN_ENDPOINT,
-    'tokenEndpoint',
-    config.allowHttp
-  );
+  const tokenUrl = resolveTokenEndpoint(config);
 
   const clientId = options.clientId || config.clientId;
   const clientSecret = options.clientSecret || config.clientSecret;

@@ -1,13 +1,13 @@
 {
   "name": "@wytpass/core",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Core TypeScript SDK for WytPass SSO, OAuth 2.0 and OpenID Connect authentication",
   "author": "Wytnet <support@wytnet.com>",
   "license": "MIT",
   "homepage": "https://wytnet.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wytnet/wytpass-sdk.git",
+    "url": "git+https://github.com/wytnet/wytpass-sdk.git",
     "directory": "packages/core"
   },
   "bugs": {

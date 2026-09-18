@@ -20,6 +20,27 @@ export interface WytPassProviderProps {
   redirectUri: string;
 
   /**
+   * Environment preset ('production' | 'local').
+   * If set to 'local', automatically connects to localhost:5173 / localhost:8000.
+   */
+  environment?: 'production' | 'local';
+
+  /**
+   * Base Portal URL (where /oauth/authorize lives).
+   */
+  portalUrl?: string;
+
+  /**
+   * Base API URL (where /oauth/token and /oauth/userinfo live).
+   */
+  apiUrl?: string;
+
+  /**
+   * Optional marketplace application slug (appId).
+   */
+  appId?: string;
+
+  /**
    * OIDC Issuer URL (Defaults to https://api.wytnet.com).
    */
   issuer?: string;

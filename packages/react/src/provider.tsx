@@ -16,6 +16,10 @@ import type { WytPassContextValue, WytPassProviderProps } from './types.js';
 export const WytPassProvider: React.FC<WytPassProviderProps> = ({
   clientId,
   redirectUri,
+  environment,
+  portalUrl,
+  apiUrl,
+  appId,
   issuer,
   authorizationEndpoint,
   tokenEndpoint,
@@ -38,6 +42,10 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
     return new WytPassClient({
       clientId,
       redirectUri,
+      environment,
+      portalUrl,
+      apiUrl,
+      appId,
       issuer,
       authorizationEndpoint,
       tokenEndpoint,
@@ -51,6 +59,10 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
   }, [
     clientId,
     redirectUri,
+    environment,
+    portalUrl,
+    apiUrl,
+    appId,
     issuer,
     authorizationEndpoint,
     tokenEndpoint,

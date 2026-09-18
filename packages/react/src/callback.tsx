@@ -25,40 +25,14 @@ export const WytPassCallback: React.FC<WytPassCallbackProps> = ({
       if (typeof window === 'undefined') return;
 
       try {
-        const searchParams = new URLSearchParams(window.location.search);
-        const errorParam = searchParams.get('error');
-        const errorDescription = searchParams.get('error_description');
+        const { user, tokens } = await client.handleCallback();
 
-        if (errorParam) {
-          throw new OAuthError(errorParam, errorDescription || undefined);
-        }
-
-        const code = searchParams.get('code');
-        const state = searchParams.get('state');
-
-        if (!code) {
-          throw new Error('Callback URL is missing required "code" parameter.');
-        }
-
-        if (!state) {
-          throw new Error('Callback URL is missing required "state" parameter.');
-        }
-
-        // 1. Validate state
-        await client.validateState(state);
-
-        // 2. Exchange authorization code for tokens
-        const tokens = await client.exchangeCode({ code });
-
-        // 3. Retrieve user profile
-        const user = await client.getUserInfo(tokens.access_token);
-
-        // 4. Update React auth state
+        // Update React auth state
         setAuthState({ user, tokens });
 
         setIsProcessing(false);
 
-        // 5. Invoke custom callback or redirect
+        // Invoke custom callback or redirect
         if (onSuccess) {
           onSuccess(user, tokens);
         }

@@ -134,8 +134,17 @@ describe('@wytpass/nextjs Server & Cookie Utilities', () => {
     expect(provider.token).toBe('https://api.wytnet.com/oauth/token');
     expect(provider.userinfo).toBe('https://api.wytnet.com/oauth/userinfo');
     expect(provider.client.token_endpoint_auth_method).toBe('client_secret_post');
-    expect(provider.idToken).toBe(false);
+    expect(provider.idToken).toBe(true);
     expect(provider.checks).toEqual(['pkce', 'state']);
+
+    const localProvider = WytPassNextAuthProvider({
+      clientId: 'wp_local',
+      issuer: 'http://localhost:8000',
+      authorizationUrl: 'http://localhost:5173/oauth/authorize'
+    });
+    expect(localProvider.token).toBe('http://localhost:8000/oauth/token');
+    expect(localProvider.userinfo).toBe('http://localhost:8000/oauth/userinfo');
+    expect(localProvider.jwks_endpoint).toBe('http://localhost:8000/.well-known/jwks.json');
 
     const normalizedFromUserId = provider.profile({
       user_id: 'usr_provider_1',

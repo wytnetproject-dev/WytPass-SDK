@@ -29,10 +29,19 @@ import type { WytPassNextAuthOptions } from './types.js';
  */
 export function WytPassNextAuthProvider(options: WytPassNextAuthOptions = {}) {
   const issuer = options.issuer || process.env['WYTPASS_ISSUER'] || DEFAULT_ISSUER;
-  const authorizationUrl = options.authorizationUrl || DEFAULT_AUTHORIZATION_ENDPOINT;
-  const tokenUrl = options.tokenUrl || DEFAULT_TOKEN_ENDPOINT;
-  const userInfoUrl = options.userInfoUrl || DEFAULT_USERINFO_ENDPOINT;
-  const jwksUrl = options.jwksUrl || DEFAULT_JWKS_ENDPOINT;
+  const authorizationUrl =
+    options.authorizationUrl ||
+    process.env['WYTPASS_AUTH_URL'] ||
+    DEFAULT_AUTHORIZATION_ENDPOINT;
+  const tokenUrl =
+    options.tokenUrl ||
+    (options.issuer || process.env['WYTPASS_ISSUER'] ? `${issuer}/oauth/token` : DEFAULT_TOKEN_ENDPOINT);
+  const userInfoUrl =
+    options.userInfoUrl ||
+    (options.issuer || process.env['WYTPASS_ISSUER'] ? `${issuer}/oauth/userinfo` : DEFAULT_USERINFO_ENDPOINT);
+  const jwksUrl =
+    options.jwksUrl ||
+    (options.issuer || process.env['WYTPASS_ISSUER'] ? `${issuer}/.well-known/jwks.json` : DEFAULT_JWKS_ENDPOINT);
 
   return {
     id: 'wytpass',
@@ -55,7 +64,7 @@ export function WytPassNextAuthProvider(options: WytPassNextAuthOptions = {}) {
       token_endpoint_auth_method: 'client_secret_post'
     },
     checks: ['pkce', 'state'] as ('pkce' | 'state')[],
-    idToken: false,
+    idToken: true,
     profile(profile: Record<string, any>) {
       const user = normalizeUserInfo(profile);
       return {

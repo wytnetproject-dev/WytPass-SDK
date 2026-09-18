@@ -2,7 +2,8 @@ import {
   DEFAULT_AUTHORIZATION_ENDPOINT,
   DEFAULT_CODE_CHALLENGE_METHOD,
   DEFAULT_RESPONSE_TYPE,
-  DEFAULT_SCOPE
+  DEFAULT_SCOPE,
+  ENVIRONMENTS
 } from './constants.js';
 import { ConfigurationError } from './errors.js';
 import { generatePKCE } from './pkce.js';
@@ -45,8 +46,16 @@ export async function buildAuthorizationUrl(
     throw new ConfigurationError('redirectUri is required to construct authorization URL.');
   }
 
-  const baseEndpoint = config.authorizationEndpoint || DEFAULT_AUTHORIZATION_ENDPOINT;
-  const authUrl = validateEndpointUrl(baseEndpoint, 'authorizationEndpoint', config.allowHttp);
+  const envConfig = config.environment ? ENVIRONMENTS[config.environment] : undefined;
+  const allowHttp = config.allowHttp ?? envConfig?.allowHttp ?? false;
+
+  const baseEndpoint =
+    config.authorizationEndpoint ||
+    (config.portalUrl ? `${config.portalUrl.replace(/\/+$/, '')}/oauth/authorize` : undefined) ||
+    envConfig?.authorizationEndpoint ||
+    DEFAULT_AUTHORIZATION_ENDPOINT;
+
+  const authUrl = validateEndpointUrl(baseEndpoint, 'authorizationEndpoint', allowHttp);
 
   // Generate or use provided state
   const state = options.state || generateState();
@@ -74,6 +83,11 @@ export async function buildAuthorizationUrl(
   searchParams.set('state', state);
   searchParams.set('code_challenge', codeChallenge);
   searchParams.set('code_challenge_method', DEFAULT_CODE_CHALLENGE_METHOD);
+
+  const appId = options.appId || config.appId;
+  if (appId) {
+    searchParams.set('appId', appId);
+  }
 
   if (options.prompt) {
     searchParams.set('prompt', options.prompt);
