@@ -17,6 +17,7 @@ out/
 .env.test.local
 .env.production.local
 *.env
+examples\consumer-test-app
 
 # Testing & Coverage
 coverage/
