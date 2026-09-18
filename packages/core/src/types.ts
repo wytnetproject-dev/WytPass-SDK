@@ -143,6 +143,11 @@ export interface AuthorizationUrlResult {
    * S256 code challenge sent in the authorization request.
    */
   codeChallenge: string;
+
+  /**
+   * The resolved redirect URI used in this authorization request.
+   */
+  redirectUri: string;
 }
 
 export interface GetAuthorizationUrlOptions {
@@ -271,6 +276,15 @@ export interface WytPassTokenResponse {
 export interface WytPassCallbackResult {
   tokens: WytPassTokenResponse;
   user: WytPassUser;
+  returnTo?: string;
+}
+
+export interface WytPassApplicationInfo {
+  name?: string;
+  description?: string;
+  allowed_scopes?: string[];
+  redirect_uris?: string[];
+  [key: string]: unknown;
 }
 
 export interface WytPassUser {

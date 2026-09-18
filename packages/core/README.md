@@ -38,11 +38,9 @@ pnpm add @wytpass/core
 ```typescript
 import { WytPassClient } from '@wytpass/core';
 
-// 1. Initialize client
+// 1. Initialize client (Zero configuration: clientId is the only required value!)
 const wytpass = new WytPassClient({
-  clientId: process.env.WYTPASS_CLIENT_ID!,
-  clientSecret: process.env.WYTPASS_CLIENT_SECRET, // Optional for public clients (PKCE)
-  redirectUri: 'https://example.com/callback'
+  clientId: process.env.WYTPASS_CLIENT_ID!
 });
 
 // 2. Generate authorization URL (redirects user to WytPass)
@@ -66,9 +64,9 @@ console.log('Logged in user:', user.name, user.email);
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `clientId` | `string` | *(Required)* | Your WytPass OAuth Client ID |
+| `clientId` | `string` | *(Required)* | **The only required value.** Your WytPass OAuth Client ID. |
+| `redirectUri` | `string` | *(Auto-resolved)* | Application redirect callback URL. Auto-discovered if omitted. |
 | `clientSecret` | `string` | `undefined` | Client Secret (Server-side ONLY) |
-| `redirectUri` | `string` | *(Required)* | Callback URL |
 | `issuer` | `string` | `https://api.wytnet.com` | WytPass OIDC Issuer |
 | `authorizationEndpoint` | `string` | `https://wytnet.com/oauth/authorize` | Authorization URL |
 | `tokenEndpoint` | `string` | `https://api.wytnet.com/oauth/token` | Token URL |

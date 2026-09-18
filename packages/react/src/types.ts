@@ -10,28 +10,32 @@ import type {
 
 export interface WytPassProviderProps {
   /**
-   * OAuth 2.0 Client ID for your application.
+   * OAuth 2.0 Client ID for your application (e.g. 'wp_xxxxxxxx').
+   * If omitted, the provider will attempt to resolve it automatically from
+   * process.env.VITE_WYTPASS_CLIENT_ID, process.env.NEXT_PUBLIC_WYTPASS_CLIENT_ID,
+   * or process.env.WYTPASS_CLIENT_ID.
    */
-  clientId: string;
+  clientId?: string;
 
   /**
-   * Registered redirect callback URI.
+   * Optional application redirect/callback URI override.
+   * If omitted, the SDK automatically resolves the registered callback URI.
    */
-  redirectUri: string;
+  redirectUri?: string;
 
   /**
    * Environment preset ('production' | 'local').
-   * If set to 'local', automatically connects to localhost:5173 / localhost:8000.
+   * Default: 'production'.
    */
   environment?: 'production' | 'local';
 
   /**
-   * Base Portal URL (where /oauth/authorize lives).
+   * Base Portal URL (where /oauth/authorize lives). Optional override.
    */
   portalUrl?: string;
 
   /**
-   * Base API URL (where /oauth/token and /oauth/userinfo live).
+   * Base API URL (where /oauth/token and /oauth/userinfo live). Optional override.
    */
   apiUrl?: string;
 
@@ -91,6 +95,12 @@ export interface WytPassProviderProps {
    * Default: true.
    */
   autoFetchUser?: boolean;
+
+  /**
+   * Automatically detect OAuth code and state in URL parameters and complete authentication.
+   * Default: true.
+   */
+  autoHandleCallback?: boolean;
 
   /**
    * Children components.

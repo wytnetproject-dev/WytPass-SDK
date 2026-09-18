@@ -37,10 +37,8 @@ import App from './App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <WytPassProvider
-      clientId="your_wytpass_client_id"
-      redirectUri="http://localhost:3000/callback"
-    >
+    {/* Zero Configuration: Only clientId is required! */}
+    <WytPassProvider clientId="your_wytpass_client_id">
       <App />
     </WytPassProvider>
   </React.StrictMode>

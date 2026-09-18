@@ -49,10 +49,12 @@ describe('Authorization URL Builder', () => {
       .rejects.toThrow(ConfigurationError);
   });
 
-  it('should throw ConfigurationError if redirectUri is missing', async () => {
-    // @ts-expect-error test missing redirectUri
-    await expect(buildAuthorizationUrl({ clientId: 'wp_123' }))
-      .rejects.toThrow(ConfigurationError);
+  it('should automatically resolve redirectUri when omitted in zero-config mode', async () => {
+    const result = await buildAuthorizationUrl({ clientId: 'wp_123' });
+    expect(result.url).toBeDefined();
+    expect(result.redirectUri).toBeDefined();
+    const parsedUrl = new URL(result.url);
+    expect(parsedUrl.searchParams.get('redirect_uri')).toBe(result.redirectUri);
   });
 
   it('should reject insecure HTTP endpoint in production', () => {

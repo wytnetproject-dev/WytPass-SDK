@@ -16,28 +16,29 @@ if (typeof WytPassProvider !== 'function' || typeof useWytPass !== 'function' ||
 }
 console.log('✓ PASS: All exports from @wytpass/core and @wytpass/react are valid.');
 
-// Test 2: Client Initialization & PKCE Generation
-console.log('\n[TEST 2] Verifying PKCE & Authorization Request...');
+// Test 2: Zero-Configuration Client Initialization & PKCE Generation
+console.log('\n[TEST 2] Verifying Zero-Configuration (Client ID Only) & PKCE Generation...');
 const storage = new MemoryStorage();
 const REAL_CLIENT_ID = 'wp_70da57c06844c018b3de';
-const REDIRECT_URI = 'http://localhost:3000/callback';
 
+// Zero configuration! Client provides ONLY clientId:
 const wytpass = new WytPass({
   clientId: REAL_CLIENT_ID,
-  redirectUri: REDIRECT_URI,
   storage
 });
 
 const auth = await wytpass.getAuthorizationUrl();
 console.log('Generated Auth URL:', auth.url);
+console.log('Auto-resolved Redirect URI:', auth.redirectUri);
 
 const parsedUrl = new URL(auth.url);
 if (parsedUrl.origin !== 'https://wytnet.com') throw new Error('FAIL: Wrong origin');
 if (parsedUrl.pathname !== '/oauth/authorize') throw new Error('FAIL: Wrong pathname');
 if (parsedUrl.searchParams.get('client_id') !== REAL_CLIENT_ID) throw new Error('FAIL: client_id mismatch');
-if (parsedUrl.searchParams.get('redirect_uri') !== REDIRECT_URI) throw new Error('FAIL: redirect_uri mismatch');
+if (!parsedUrl.searchParams.get('redirect_uri')) throw new Error('FAIL: redirect_uri not auto-resolved');
 if (parsedUrl.searchParams.get('response_type') !== 'code') throw new Error('FAIL: response_type must be code');
 if (parsedUrl.searchParams.get('code_challenge_method') !== 'S256') throw new Error('FAIL: code_challenge_method must be S256');
+if (parsedUrl.searchParams.get('scope') !== 'openid profile email') throw new Error('FAIL: scope must default to openid profile email');
 
 const codeChallenge = parsedUrl.searchParams.get('code_challenge');
 if (!codeChallenge || codeChallenge.length < 40) throw new Error('FAIL: Missing or invalid code_challenge');
@@ -47,14 +48,15 @@ if (!stateParam || stateParam.length < 20) throw new Error('FAIL: Missing or inv
 
 if (storage.get(STORAGE_KEYS.STATE) !== stateParam) throw new Error('FAIL: State not stored in storage');
 if (!storage.get(STORAGE_KEYS.CODE_VERIFIER)) throw new Error('FAIL: code_verifier not stored in storage');
+if (storage.get(STORAGE_KEYS.REDIRECT_URI) !== auth.redirectUri) throw new Error('FAIL: redirect_uri not stored in storage');
 
-console.log('✓ PASS: Authorization URL conforms to WytPass PKCE S256 specification.');
+console.log('✓ PASS: Zero-configuration authorization URL conforms to WytPass PKCE S256 specification.');
 
 // Test 3: Verify with live WytNET API application-info endpoint
 console.log('\n[TEST 3] Verifying against Live WytNET API application-info...');
 try {
   const appInfoRes = await fetch(
-    `https://api.wytnet.com/oauth/application-info?client_id=${REAL_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`
+    `https://api.wytnet.com/oauth/application-info?client_id=${REAL_CLIENT_ID}&redirect_uri=${encodeURIComponent(auth.redirectUri)}`
   );
   if (!appInfoRes.ok) {
     throw new Error(`Failed to query live application info: HTTP ${appInfoRes.status}`);

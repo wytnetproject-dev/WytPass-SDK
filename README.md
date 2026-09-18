@@ -96,10 +96,8 @@ import App from './App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <WytPassProvider
-      clientId="your_client_id"
-      redirectUri="http://localhost:3000/callback"
-    >
+    {/* Zero Configuration: Only clientId is required! */}
+    <WytPassProvider clientId="your_client_id">
       <App />
     </WytPassProvider>
   </React.StrictMode>
@@ -216,17 +214,15 @@ export default async function DashboardPage() {
 ```typescript
 import { WytPass } from '@wytpass/core';
 
-// 1. Initialize client (Use environment: 'local' for local development)
+// 1. Initialize client (Zero configuration: only clientId is required!)
 const wytpass = new WytPass({
-  clientId: 'wp_your_client_id_here',
-  redirectUri: 'http://localhost:3000/callback',
-  environment: 'production' // or 'local'
+  clientId: 'wp_your_client_id_here'
 });
 
 // 2. Initiate Login (Automatically redirects in browser with PKCE & CSRF protection)
 await wytpass.login();
 
-// 3. Handle Callback (On /callback route: validates state, exchanges code, retrieves user)
+// 3. Handle Callback (On callback: validates state, exchanges code, retrieves user)
 const { user, tokens } = await wytpass.handleCallback();
 console.log('Authenticated User:', user.name, user.email, tokens.access_token);
 
@@ -243,8 +239,8 @@ await wytpass.logout();
 
 | Property | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `clientId` | `string` | *(Required)* | OAuth Client ID assigned to your app |
-| `redirectUri` | `string` | *(Required)* | Registered callback URL |
+| `clientId` | `string` | *(Required)* | **The only required value.** OAuth Client ID assigned to your app. |
+| `redirectUri` | `string` | *(Auto-resolved)* | Application redirect URI (auto-discovered from browser origin and registration if omitted). |
 | `environment` | `'production' \| 'local'` | `'production'` | Canonical environment preset adhering to Rule of Isolation |
 | `portalUrl` | `string` | `https://wytnet.com` | Base Portal URL (serves `/oauth/authorize`) |
 | `apiUrl` | `string` | `https://api.wytnet.com` | Base API URL (serves `/oauth/token` and `/oauth/userinfo`) |
@@ -263,17 +259,19 @@ await wytpass.logout();
 
 ## Environment Variables
 
-Copy `.env.example` to your application root:
+For client-side applications (Vite, React, Browser), **only the Client ID is needed**:
 
 ```bash
-# Required
-WYTPASS_CLIENT_ID=your_client_id_here
-WYTPASS_CLIENT_SECRET=your_client_secret_here
-WYTPASS_REDIRECT_URI=http://localhost:3000/api/auth/wytpass/callback
+VITE_WYTPASS_CLIENT_ID=wp_xxxxxxxxx
+# or for Next.js browser:
+# NEXT_PUBLIC_WYTPASS_CLIENT_ID=wp_xxxxxxxxx
+```
 
-# Optional overrides
-WYTPASS_ISSUER=https://api.wytnet.com
-WYTPASS_SCOPE=openid profile email
+For confidential server-side environments (Node.js / Route Handlers):
+
+```bash
+WYTPASS_CLIENT_ID=wp_xxxxxxxxx
+WYTPASS_CLIENT_SECRET=your_client_secret_here
 ```
 
 ---

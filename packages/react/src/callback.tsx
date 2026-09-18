@@ -25,7 +25,7 @@ export const WytPassCallback: React.FC<WytPassCallbackProps> = ({
       if (typeof window === 'undefined') return;
 
       try {
-        const { user, tokens } = await client.handleCallback();
+        const { user, tokens, returnTo } = await client.handleCallback();
 
         // Update React auth state
         setAuthState({ user, tokens });
@@ -39,6 +39,8 @@ export const WytPassCallback: React.FC<WytPassCallbackProps> = ({
 
         if (successRedirect) {
           window.location.assign(successRedirect);
+        } else if (returnTo) {
+          window.location.assign(returnTo);
         }
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error(String(err));

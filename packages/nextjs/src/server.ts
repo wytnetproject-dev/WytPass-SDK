@@ -54,7 +54,11 @@ export function resolveRedirectUri(request?: Request, configuredUri?: string): s
 export function createWytPassAuth(userConfig: WytPassNextConfig = {}): WytPassAuthInstance {
   const clientId =
     userConfig.clientId ||
-    (typeof process !== 'undefined' ? process.env['WYTPASS_CLIENT_ID'] : undefined);
+    (typeof process !== 'undefined'
+      ? process.env['WYTPASS_CLIENT_ID'] ||
+        process.env['NEXT_PUBLIC_WYTPASS_CLIENT_ID'] ||
+        process.env['VITE_WYTPASS_CLIENT_ID']
+      : undefined);
   const clientSecret =
     userConfig.clientSecret ||
     (typeof process !== 'undefined' ? process.env['WYTPASS_CLIENT_SECRET'] : undefined);

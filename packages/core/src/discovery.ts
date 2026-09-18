@@ -1,6 +1,12 @@
-import { DEFAULT_DISCOVERY_CACHE_TTL_MS, DEFAULT_DISCOVERY_ENDPOINT, DEFAULT_ISSUER } from './constants.js';
+import {
+  DEFAULT_API_URL,
+  DEFAULT_DISCOVERY_CACHE_TTL_MS,
+  DEFAULT_DISCOVERY_ENDPOINT,
+  DEFAULT_ISSUER,
+  ENVIRONMENTS
+} from './constants.js';
 import { DiscoveryError, NetworkError } from './errors.js';
-import type { WytPassConfig, WytPassDiscoveryDocument } from './types.js';
+import type { WytPassApplicationInfo, WytPassConfig, WytPassDiscoveryDocument } from './types.js';
 import { validateEndpointUrl } from './authorization.js';
 
 interface CacheEntry {
@@ -10,11 +16,76 @@ interface CacheEntry {
 
 let discoveryCache: CacheEntry | null = null;
 
+interface AppInfoCacheEntry {
+  info: WytPassApplicationInfo;
+  expiresAt: number;
+}
+
+const appInfoCache = new Map<string, AppInfoCacheEntry>();
+
+/**
+ * Fetches application metadata (allowed_scopes, registered redirect_uris) from WhitePass.
+ */
+export async function fetchApplicationInfo(
+  config: WytPassConfig,
+  forceRefresh = false
+): Promise<WytPassApplicationInfo | null> {
+  if (!config.clientId) return null;
+
+  const now = Date.now();
+  const cached = appInfoCache.get(config.clientId);
+  if (!forceRefresh && cached && cached.expiresAt > now) {
+    return cached.info;
+  }
+
+  const envConfig = config.environment ? ENVIRONMENTS[config.environment] : undefined;
+  const baseApiUrl = config.apiUrl || envConfig?.apiUrl || DEFAULT_API_URL;
+  const url = `${baseApiUrl.replace(/\/+$/, '')}/oauth/application-info?client_id=${encodeURIComponent(config.clientId)}`;
+  const fetchFn = config.fetch || globalThis.fetch;
+  if (typeof fetchFn !== 'function') {
+    return null;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const response = await fetchFn(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as WytPassApplicationInfo;
+    if (data && typeof data === 'object') {
+      appInfoCache.set(config.clientId, {
+        info: data,
+        expiresAt: now + DEFAULT_DISCOVERY_CACHE_TTL_MS
+      });
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clears the in-memory application info cache.
+ */
+export function clearApplicationInfoCache(): void {
+  appInfoCache.clear();
+}
+
 /**
  * Fetches and caches the OpenID Connect discovery document (.well-known/openid-configuration).
  */
 export async function fetchDiscoveryDocument(
-  config: WytPassConfig = { clientId: '', redirectUri: '' },
+  config: WytPassConfig = { clientId: '' },
   forceRefresh = false
 ): Promise<WytPassDiscoveryDocument> {
   const now = Date.now();

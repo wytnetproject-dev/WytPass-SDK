@@ -9,7 +9,7 @@ export function useWytPass(): WytPassContextValue {
   const context = useContext(WytPassContext);
   if (!context) {
     throw new Error(
-      'useWytPass must be used within a <WytPassProvider>. Wrap your application root with <WytPassProvider clientId="..." redirectUri="...">.'
+      'useWytPass must be used within a <WytPassProvider>. Wrap your application root with <WytPassProvider clientId="...">.'
     );
   }
   return context;

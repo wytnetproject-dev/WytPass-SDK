@@ -5,6 +5,7 @@ import {
   DEFAULT_SCOPE,
   ENVIRONMENTS
 } from './constants.js';
+import { fetchApplicationInfo } from './discovery.js';
 import { ConfigurationError } from './errors.js';
 import { generatePKCE } from './pkce.js';
 import { generateState } from './state.js';
@@ -31,6 +32,86 @@ export function validateEndpointUrl(url: string, endpointName: string, allowHttp
 }
 
 /**
+ * Automatically resolves the redirect URI from caller options, config,
+ * application registered URIs from WhitePass API, browser origin, or server environment.
+ */
+export async function resolveRedirectUri(
+  config: WytPassConfig,
+  options?: GetAuthorizationUrlOptions
+): Promise<string> {
+  // 1. Explicit override in options
+  if (options?.redirectUri) {
+    return options.redirectUri;
+  }
+  // 2. Explicit config provided by client
+  if (config.redirectUri) {
+    return config.redirectUri;
+  }
+
+  // 3. Browser environment automatic resolution
+  if (typeof window !== 'undefined' && window.location) {
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+
+    // If current path already looks like a callback route, use it
+    if (pathname.includes('/callback')) {
+      return `${origin}${pathname}`;
+    }
+
+    // Attempt to query WhitePass application-info for this client ID
+    try {
+      const appInfo = await fetchApplicationInfo(config);
+      if (appInfo?.redirect_uris && appInfo.redirect_uris.length > 0) {
+        // Find registered redirect URI that matches current window origin
+        const exactOriginMatch = appInfo.redirect_uris.find(uri => {
+          try {
+            return new URL(uri).origin === origin;
+          } catch {
+            return false;
+          }
+        });
+        if (exactOriginMatch) {
+          return exactOriginMatch;
+        }
+
+        // If in local development, match any localhost / 127.0.0.1 URI
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          const localMatch = appInfo.redirect_uris.find(uri =>
+            uri.includes('localhost') || uri.includes('127.0.0.1')
+          );
+          if (localMatch) {
+            return localMatch;
+          }
+        }
+
+        // Return the first registered redirect URI
+        if (appInfo.redirect_uris[0]) {
+          return appInfo.redirect_uris[0];
+        }
+      }
+    } catch {
+      // Fall through to standard default
+    }
+
+    // Standard browser fallback
+    return `${origin}/callback`;
+  }
+
+  // 4. Server environment check (Node.js / Next.js / Vercel)
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env['WYTPASS_REDIRECT_URI']) {
+      return process.env['WYTPASS_REDIRECT_URI'];
+    }
+    if (process.env['VERCEL_URL']) {
+      return `https://${process.env['VERCEL_URL']}/api/auth/wytpass/callback`;
+    }
+  }
+
+  // 5. Default fallback
+  return 'http://localhost:3000/callback';
+}
+
+/**
  * Builds the complete OAuth 2.0 / OIDC Authorization URL with PKCE (RFC 7636) and state protection.
  */
 export async function buildAuthorizationUrl(
@@ -41,10 +122,7 @@ export async function buildAuthorizationUrl(
     throw new ConfigurationError('clientId is required in WytPassConfig.');
   }
 
-  const redirectUri = options.redirectUri || config.redirectUri;
-  if (!redirectUri) {
-    throw new ConfigurationError('redirectUri is required to construct authorization URL.');
-  }
+  const redirectUri = await resolveRedirectUri(config, options);
 
   const envConfig = config.environment ? ENVIRONMENTS[config.environment] : undefined;
   const allowHttp = config.allowHttp ?? envConfig?.allowHttp ?? false;
@@ -111,6 +189,7 @@ export async function buildAuthorizationUrl(
     url: authUrl.toString(),
     state,
     codeVerifier,
-    codeChallenge
+    codeChallenge,
+    redirectUri
   };
 }

@@ -34,4 +34,14 @@ describe('@wytpass/react', () => {
 
     expect(html).toContain('has-client');
   });
+
+  it('should render with zero-configuration providing only clientId', () => {
+    const html = renderToString(
+      <WytPassProvider clientId="wp_zero_config_test">
+        <TestConsumer />
+      </WytPassProvider>
+    );
+
+    expect(html).toContain('has-client');
+  });
 });

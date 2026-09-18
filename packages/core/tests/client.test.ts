@@ -22,16 +22,18 @@ describe('WytPassClient High-Level API', () => {
     expect(safeConfig.clientSecret).toBeUndefined();
   });
 
-  it('should initialize with clientId alone and require redirectUri when generating auth URL', async () => {
+  it('should initialize with clientId alone and automatically resolve redirectUri in zero-config mode', async () => {
     const client = new WytPassClient({ clientId: 'wp_123' });
     expect(client.getConfig().clientId).toBe('wp_123');
 
-    // Should throw if generating auth url without redirectUri
-    await expect(client.getAuthorizationUrl()).rejects.toThrow(ConfigurationError);
-
-    // Should succeed when redirectUri is provided in options
-    const auth = await client.getAuthorizationUrl({ redirectUri: 'https://myapp.com/callback' });
+    // Should succeed without error in zero-config mode
+    const auth = await client.getAuthorizationUrl();
     expect(auth.url).toContain('https://wytnet.com/oauth/authorize');
+    expect(auth.redirectUri).toBeDefined();
+
+    // Should also support explicit redirectUri override
+    const authOverride = await client.getAuthorizationUrl({ redirectUri: 'https://myapp.com/callback' });
+    expect(authOverride.url).toContain('redirect_uri=https%3A%2F%2Fmyapp.com%2Fcallback');
   });
 
   it('should throw ConfigurationError if missing required clientId', () => {

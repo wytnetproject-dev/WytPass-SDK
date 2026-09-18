@@ -55,12 +55,14 @@ export const CallbackRoute: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  // In client applications, only the Client ID is required!
+  // All WhitePass URLs, endpoints, scopes, PKCE, and redirect resolution are handled internally.
+  const clientId =
+    (typeof process !== 'undefined' && process.env['VITE_WYTPASS_CLIENT_ID']) ||
+    'wp_d80c88e9dfc80679b21d';
+
   return (
-    <WytPassProvider
-      clientId="wp_70da57c06844c018b3de"
-      redirectUri="http://localhost:3000/callback"
-      scope="openid profile email"
-    >
+    <WytPassProvider clientId={clientId}>
       <UserProfile />
     </WytPassProvider>
   );

@@ -55,6 +55,9 @@ export class WytPassClient {
    * Caches the generated state and code_verifier before redirecting.
    */
   public async login(options: GetAuthorizationUrlOptions = {}): Promise<void> {
+    if (typeof window !== 'undefined' && window.location && !window.location.pathname.includes('/callback')) {
+      await Promise.resolve(this.storage.set(STORAGE_KEYS.RETURN_TO, window.location.href));
+    }
     const auth = await this.getAuthorizationUrl(options);
     if (typeof window !== 'undefined' && window.location) {
       window.location.assign(auth.url);
@@ -93,6 +96,8 @@ export class WytPassClient {
       // Clean up temporary transaction data on error
       await Promise.resolve(this.storage.remove(STORAGE_KEYS.STATE));
       await Promise.resolve(this.storage.remove(STORAGE_KEYS.CODE_VERIFIER));
+      await Promise.resolve(this.storage.remove(STORAGE_KEYS.REDIRECT_URI));
+      await Promise.resolve(this.storage.remove(STORAGE_KEYS.RETURN_TO));
       throw new OAuthError(errorParam, errorDescription || undefined, errorUri || undefined);
     }
 
@@ -151,7 +156,13 @@ export class WytPassClient {
     }
     await Promise.resolve(this.storage.set(STORAGE_KEYS.USER, JSON.stringify(user)));
 
-    return { tokens, user };
+    // Retrieve pre-login return URL if present
+    const returnTo = (await Promise.resolve(this.storage.get(STORAGE_KEYS.RETURN_TO))) ?? undefined;
+    if (returnTo) {
+      await Promise.resolve(this.storage.remove(STORAGE_KEYS.RETURN_TO));
+    }
+
+    return { tokens, user, returnTo };
   }
 
   /**
@@ -192,19 +203,22 @@ export class WytPassClient {
     await Promise.resolve(this.storage.remove(STORAGE_KEYS.USER));
     await Promise.resolve(this.storage.remove(STORAGE_KEYS.STATE));
     await Promise.resolve(this.storage.remove(STORAGE_KEYS.CODE_VERIFIER));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.REDIRECT_URI));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.RETURN_TO));
   }
 
   /**
    * Generates a complete OAuth 2.0 / OIDC Authorization URL with PKCE and state protection.
-   * Also caches the generated state and code_verifier in storage.
+   * Also caches the generated state, code_verifier, and resolved redirect_uri in storage.
    */
   public async getAuthorizationUrl(options: GetAuthorizationUrlOptions = {}): Promise<AuthorizationUrlResult> {
     this.logger.debug('Generating authorization URL...');
     const result = await buildAuthorizationUrl(this.config, options);
 
-    // Save temporary state and verifier in storage for later callback validation
+    // Save temporary state, verifier, and resolved redirect URI in storage for later callback validation
     await Promise.resolve(this.storage.set(STORAGE_KEYS.STATE, result.state));
     await Promise.resolve(this.storage.set(STORAGE_KEYS.CODE_VERIFIER, result.codeVerifier));
+    await Promise.resolve(this.storage.set(STORAGE_KEYS.REDIRECT_URI, result.redirectUri));
 
     this.logger.debug('Authorization URL generated with state:', result.state);
     return result;
@@ -223,7 +237,7 @@ export class WytPassClient {
 
   /**
    * Exchanges an authorization code for access tokens, refresh tokens, and ID tokens using PKCE.
-   * If codeVerifier is omitted, it will be retrieved from the configured storage adapter.
+   * If codeVerifier or redirectUri is omitted, it will be retrieved from the configured storage adapter.
    */
   public async exchangeCode(options: ExchangeCodeOptions): Promise<WytPassTokenResponse> {
     let codeVerifier = options.codeVerifier;
@@ -231,15 +245,22 @@ export class WytPassClient {
       codeVerifier = (await Promise.resolve(this.storage.get(STORAGE_KEYS.CODE_VERIFIER))) ?? undefined;
     }
 
+    let redirectUri = options.redirectUri;
+    if (!redirectUri) {
+      redirectUri = (await Promise.resolve(this.storage.get(STORAGE_KEYS.REDIRECT_URI))) ?? undefined;
+    }
+
     this.logger.debug('Exchanging authorization code...');
     const tokens = await exchangeAuthorizationCode(this.config, {
       ...options,
-      codeVerifier
+      codeVerifier,
+      redirectUri
     });
 
-    // Cleanup one-time PKCE verifier and state from storage
+    // Cleanup one-time PKCE verifier, redirect URI, and state from storage
     await Promise.resolve(this.storage.remove(STORAGE_KEYS.CODE_VERIFIER));
     await Promise.resolve(this.storage.remove(STORAGE_KEYS.STATE));
+    await Promise.resolve(this.storage.remove(STORAGE_KEYS.REDIRECT_URI));
 
     this.logger.info('Authorization code exchanged successfully.');
     return tokens;

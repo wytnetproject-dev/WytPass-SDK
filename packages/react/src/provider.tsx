@@ -29,8 +29,19 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
   scope,
   allowHttp,
   storageType = 'sessionStorage',
+  autoHandleCallback = true,
   children
 }) => {
+  const resolvedClientId =
+    clientId ||
+    (typeof process !== 'undefined' && process.env
+      ? process.env['VITE_WYTPASS_CLIENT_ID'] ||
+        process.env['NEXT_PUBLIC_WYTPASS_CLIENT_ID'] ||
+        process.env['REACT_APP_WYTPASS_CLIENT_ID'] ||
+        process.env['WYTPASS_CLIENT_ID']
+      : undefined) ||
+    '';
+
   const storage = useMemo<WytPassStorage>(() => {
     if (storageType === 'memory') {
       return new MemoryStorage();
@@ -40,7 +51,7 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
 
   const client = useMemo(() => {
     return new WytPassClient({
-      clientId,
+      clientId: resolvedClientId,
       redirectUri,
       environment,
       portalUrl,
@@ -57,7 +68,7 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
       storage
     });
   }, [
-    clientId,
+    resolvedClientId,
     redirectUri,
     environment,
     portalUrl,
@@ -79,12 +90,35 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<WytPassError | Error | null>(null);
 
-  // Restore existing session from storage on mount
+  // Restore existing session or automatically handle incoming OAuth redirect on mount
   useEffect(() => {
     let isMounted = true;
 
-    async function restoreSession() {
+    async function initSession() {
       try {
+        // Automatically handle OAuth redirect if returning to app
+        if (
+          autoHandleCallback &&
+          typeof window !== 'undefined' &&
+          window.location &&
+          window.location.search.includes('code=') &&
+          window.location.search.includes('state=') &&
+          !window.location.pathname.includes('/callback')
+        ) {
+          const result = await client.handleCallback();
+          if (isMounted) {
+            setAccessToken(result.tokens.access_token);
+            setUser(result.user);
+          }
+          // Remove OAuth parameters from browser URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+
+          if (result.returnTo && result.returnTo !== window.location.href) {
+            window.location.assign(result.returnTo);
+          }
+          return;
+        }
+
         const storedToken = await Promise.resolve(storage.get(STORAGE_KEYS.ACCESS_TOKEN));
         const storedUser = await Promise.resolve(storage.get(STORAGE_KEYS.USER));
 
@@ -111,11 +145,11 @@ export const WytPassProvider: React.FC<WytPassProviderProps> = ({
       }
     }
 
-    restoreSession();
+    initSession();
     return () => {
       isMounted = false;
     };
-  }, [storage]);
+  }, [client, storage, autoHandleCallback]);
 
   const login = useCallback(
     async (options?: GetAuthorizationUrlOptions) => {
